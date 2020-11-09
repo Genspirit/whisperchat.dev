@@ -5,6 +5,7 @@ export function join(socket, roomId) {
 
   if (!roomExists) {
     this.rooms[roomId] = [socket.id];
+    this.connectionToRoomMap[socket.id] = roomId;
     return;
   }
 
@@ -18,6 +19,7 @@ export function join(socket, roomId) {
   const otherUser = room.length === 1 && room[0];
 
   room.push(socket.id);
+  this.connectionToRoomMap[socket.id] = roomId;
 
   if (otherUser) {
     socket.emit("other user", otherUser);

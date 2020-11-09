@@ -13,9 +13,14 @@ export default class SignalingServer {
 
   constructor(port?: number) {
     this.#server = new Server(port || 8080, {
-      cors: { origin: "http://localhost:3000" },
+      cors: { origin: "*" },
     });
     this.#server.on("connect", this.#connect);
+
+    setInterval(() => {
+      console.log("rooms", this.rooms);
+    }, 10000);
+    console.log("Signaling Server has started.");
   }
 
   #connect = (socket: Socket) => {
@@ -26,6 +31,7 @@ export default class SignalingServer {
     socket.on("offer", events.offer.bind(this, socket));
     socket.on("response", events.response.bind(this, socket));
     socket.on("ice-candidate", events.iceCandidate.bind(this, socket));
+    socket.on("disconnect", events.disconnect.bind(this, socket));
   };
 
   shutDown() {
