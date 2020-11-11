@@ -1,3 +1,3 @@
 import SignalingServer from "./servers/signaling";
 
-new SignalingServer(8080);
+new SignalingServer(9050);

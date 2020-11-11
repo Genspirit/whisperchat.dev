@@ -1,4 +1,5 @@
 import { Server, Socket } from "socket.io";
+import * as http from "http";
 
 import * as events from "./events";
 
@@ -12,9 +13,12 @@ export default class SignalingServer {
   connectionToRoomMap: Record<string, string> = {};
 
   constructor(port?: number) {
-    this.#server = new Server(port || 8080, {
-      cors: { origin: "*" },
+    this.#server = new Server(port, {
+      cors: {
+        origin: "*",
+      },
     });
+
     this.#server.on("connect", this.#connect);
 
     setInterval(() => {

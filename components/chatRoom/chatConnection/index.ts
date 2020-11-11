@@ -13,7 +13,7 @@ export default class ChatConnection {
   constructor({ handleNewMsg, roomId }) {
     this.#handleNewMsg = handleNewMsg;
 
-    this.#socket = new Manager(`ws://${location.hostname}:8080`).socket("/");
+    this.#socket = new Manager(`ws://${location.hostname}:9050`).socket("/");
     const socket = this.#socket;
 
     console.log(`Joining room ${roomId}`);
@@ -41,8 +41,11 @@ export default class ChatConnection {
     console.log(`Connecting to ${otherUser}`);
     this.#peer = otherUser;
     await this.#startConnection();
+
     this.#chatChannel = this.#peerConnection.createDataChannel("chat");
     console.log("data channel", this.#chatChannel);
+
+    this.#chatChannel.onopen = () => console.log("Chat Channel Open");
 
     this.#chatChannel.onmessage = (msgEvent) =>
       this.#handleNewMsg(JSON.parse(msgEvent.data));
@@ -53,13 +56,33 @@ export default class ChatConnection {
       res.json()
     );
 
-    this.#peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302?transport=udp" }],
-    });
+    const config: RTCConfiguration = {
+      iceServers: [
+        {
+          urls: "stun:stun.stunprotocol.org",
+        },
+        {
+          urls: "turn:numb.viagenie.ca",
+          credential: "muazkh",
+          username: "webrtc@live.com",
+        },
+      ],
+      // iceServers: accessToken.ice_servers.map(
+      //   ({ urls, credential, username }) => ({ urls, credential, username })
+      // ),
+    };
+
+    console.log(config);
+
+    this.#peerConnection = new RTCPeerConnection(config);
 
     this.#peerConnection.onicecandidate = this.#handleNewIceCandidateEvent;
     this.#peerConnection.ondatachannel = this.#handleNewDataChannelEvent;
     this.#peerConnection.onnegotiationneeded = this.#handleNegotionNeededEvent;
+
+    this.#peerConnection.addEventListener("icegatheringstatechange", (e) => {
+      console.log((e.target as any).iceGatheringState);
+    });
 
     console.log(this.#peerConnection.getConfiguration());
 
@@ -70,11 +93,10 @@ export default class ChatConnection {
   };
 
   #handleNewIceCandidateEvent = (event) => {
-    console.log("sending ICE Candidiate");
     const { candidate } = event;
-    console.log(event);
-    if (candidate && candidate.length > 0) {
+    if (candidate) {
       const target = this.#peer;
+      console.log(candidate);
 
       this.#socket.emit("ice-candidate", {
         target,
@@ -99,6 +121,8 @@ export default class ChatConnection {
     console.log("Received new data channel", event.channel);
     this.#chatChannel = event.channel;
     console.log("ChatConnection", this);
+
+    this.#chatChannel.onopen = () => console.log("Chat Channel Open");
 
     this.#chatChannel.onmessage = (msgEvent) =>
       this.#handleNewMsg(JSON.parse(msgEvent.data));

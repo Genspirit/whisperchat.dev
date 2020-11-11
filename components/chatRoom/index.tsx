@@ -1,5 +1,4 @@
-import { Console } from "console";
-import { useRef, useEffect, useState, Component } from "react";
+import { Component } from "react";
 
 import ChatConnection from "./chatConnection";
 import ChatMessage from "./chatMessage";
@@ -51,7 +50,8 @@ class ChatRoom extends Component<
     this.setState({ ...this.state, ...{ outgoingMsg } });
   };
 
-  sendMessage = () => {
+  sendMessage = (e) => {
+    e.preventDefault();
     if (this.state.outgoingMsg) {
       this.chatConnection.sendMsg({
         name: this.state.name,
@@ -63,7 +63,7 @@ class ChatRoom extends Component<
         { type: "outgoing", content: this.state.outgoingMsg, name: "" },
       ];
 
-      this.setState({ ...this.state, ...{ messages } });
+      this.setState({ ...this.state, ...{ messages, outgoingMsg: "" } });
     }
   };
 
@@ -75,8 +75,13 @@ class ChatRoom extends Component<
           <ChatMessage key={index} content={content} type={type} name={name} />
         ))}
       </div>
-      <input value={this.state.outgoingMsg} onChange={this.updateOutgoingMsg} />
-      <button onClick={this.sendMessage}>SEND</button>
+      <form onSubmit={this.sendMessage}>
+        <input
+          value={this.state.outgoingMsg}
+          onChange={this.updateOutgoingMsg}
+        />
+        <button type="submit">SEND</button>
+      </form>
     </div>
   );
 }
