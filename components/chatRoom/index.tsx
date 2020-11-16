@@ -1,7 +1,10 @@
 import { Component } from "react";
 
 import ChatConnection from "./chatConnection";
+
+import ChatHeader from "./chatHeader";
 import ChatMessage from "./chatMessage";
+import ChatInput from "./chatInput";
 
 import withStyles from "./styles";
 
@@ -13,13 +16,19 @@ type Message = {
   name: string;
 };
 
+type ChatRoomState = {
+  messages: Message[];
+  status: string;
+  name: string;
+};
+
 class ChatRoom extends Component<
   { roomId: string; classes: Record<string, string> },
-  { messages: Message[]; outgoingMsg: string; name: string }
+  ChatRoomState
 > {
-  state = {
+  state: ChatRoomState = {
     messages: [],
-    outgoingMsg: "",
+    status: "waiting",
     name: "Unknown",
   };
 
@@ -34,7 +43,13 @@ class ChatRoom extends Component<
     this.chatConnection = new ChatConnection({
       handleNewMsg: this.handleIncomingMsg,
       roomId: this.props.roomId,
+      updateStatus: this.updateStatus,
     });
+  };
+
+  updateStatus = (status: string) => {
+    if (status === "failed" && this.state.status !== "connecting") return;
+    this.setState({ ...this.state, status });
   };
 
   handleIncomingMsg = (msg) => {
@@ -50,38 +65,34 @@ class ChatRoom extends Component<
     this.setState({ ...this.state, ...{ outgoingMsg } });
   };
 
-  sendMessage = (e) => {
-    e.preventDefault();
-    if (this.state.outgoingMsg) {
-      this.chatConnection.sendMsg({
-        name: this.state.name,
-        content: this.state.outgoingMsg,
-      });
+  sendMessage = (msg) => {
+    this.chatConnection.sendMsg({
+      name: this.state.name,
+      content: msg,
+    });
 
-      const messages = [
-        ...this.state.messages,
-        { type: "outgoing", content: this.state.outgoingMsg, name: "" },
-      ];
+    const messages = [
+      ...this.state.messages,
+      { type: "outgoing", content: msg, name: "Me" },
+    ];
 
-      this.setState({ ...this.state, ...{ messages, outgoingMsg: "" } });
-    }
+    this.setState({ ...this.state, ...{ messages } });
   };
 
   render = () => (
     <div className={this.props.classes.root}>
-      <h1>Room: {this.props.roomId}</h1>
+      <ChatHeader
+        roomId={this.props.roomId}
+        setName={(name) => this.setState({ ...this.state, name })}
+        name={this.state.name}
+        status={this.state.status}
+      />
       <div id="msg-box" className={this.props.classes.chatBox}>
         {this.state.messages.map(({ type, content, name }, index) => (
           <ChatMessage key={index} content={content} type={type} name={name} />
         ))}
       </div>
-      <form onSubmit={this.sendMessage}>
-        <input
-          value={this.state.outgoingMsg}
-          onChange={this.updateOutgoingMsg}
-        />
-        <button type="submit">SEND</button>
-      </form>
+      <ChatInput sendMessage={this.sendMessage} status={this.state.status} />
     </div>
   );
 }

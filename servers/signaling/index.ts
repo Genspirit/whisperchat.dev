@@ -1,5 +1,4 @@
 import { Server, Socket } from "socket.io";
-import * as http from "http";
 
 import * as events from "./events";
 

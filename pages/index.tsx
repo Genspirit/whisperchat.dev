@@ -1,22 +1,20 @@
 import Head from "next/head";
-import styles from "../styles/Home.module.css";
 
+import Welcome from "components/welcome";
 import CreateRoom from "~/components/createRoom";
 
-export default function CreateChatRoom() {
+export default function HomePage() {
   return (
-    <div className={styles.container}>
+    <div className="full-page">
       <Head>
         <title>WhisperChat.dev</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="/">WhisperChat.dev!</a>
-        </h1>
-        <CreateRoom />
-      </main>
+      <Welcome>
+        <CreateRoom type={"text"} />
+        {/* <CreateRoom type={"video"} /> */}
+      </Welcome>
     </div>
   );
 }

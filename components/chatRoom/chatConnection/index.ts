@@ -1,28 +1,32 @@
 import { Manager } from "socket.io-client";
 import type { Socket } from "socket.io-client/build/socket";
-import { iceCandidate } from "~/servers/signaling/events";
 
 export default class ChatConnection {
   #handleNewMsg: (msg: string) => void;
+  #updateStatus: (status: string) => void;
   #socket: Socket;
   #peer: string;
   #peerConnection: RTCPeerConnection;
   #chatChannel: RTCDataChannel;
   #pendingICECandidates: RTCIceCandidate[] = [];
 
-  constructor({ handleNewMsg, roomId }) {
+  constructor({ handleNewMsg, roomId, updateStatus }) {
     this.#handleNewMsg = handleNewMsg;
+    this.#updateStatus = updateStatus;
 
     this.#socket = new Manager(`ws://${location.hostname}:9050`).socket("/");
     const socket = this.#socket;
 
     console.log(`Joining room ${roomId}`);
     socket.emit("join room", roomId);
+    socket.on('room full', () => this.#updateStatus('full'));
 
     socket.on("other user", this.#handleOtherUser);
 
     socket.on("user joined", (otherUser) => {
       console.log(`User joined ${otherUser}`);
+
+      this.#updateStatus("connecting");
 
       this.#peer = otherUser;
     });
@@ -33,19 +37,25 @@ export default class ChatConnection {
   }
 
   sendMsg = (msg) => {
-    console.log("sending message");
-    this.#chatChannel.send(JSON.stringify(msg));
+    if (this.#chatChannel?.readyState === "open") {
+      console.log("sending message");
+      this.#chatChannel.send(JSON.stringify(msg));
+    }
   };
 
   #handleOtherUser = async (otherUser) => {
     console.log(`Connecting to ${otherUser}`);
+    this.#updateStatus("connecting");
     this.#peer = otherUser;
     await this.#startConnection();
 
     this.#chatChannel = this.#peerConnection.createDataChannel("chat");
     console.log("data channel", this.#chatChannel);
 
-    this.#chatChannel.onopen = () => console.log("Chat Channel Open");
+    this.#chatChannel.onopen = () => {
+      console.log("Chat Channel Open");
+      this.#updateStatus("connected");
+    };
 
     this.#chatChannel.onmessage = (msgEvent) =>
       this.#handleNewMsg(JSON.parse(msgEvent.data));
@@ -57,19 +67,19 @@ export default class ChatConnection {
     );
 
     const config: RTCConfiguration = {
-      iceServers: [
-        {
-          urls: "stun:stun.stunprotocol.org",
-        },
-        {
-          urls: "turn:numb.viagenie.ca",
-          credential: "muazkh",
-          username: "webrtc@live.com",
-        },
-      ],
-      // iceServers: accessToken.ice_servers.map(
-      //   ({ urls, credential, username }) => ({ urls, credential, username })
-      // ),
+      // iceServers: [
+      //   {
+      //     urls: "stun:stun.stunprotocol.org",
+      //   },
+      //   {
+      //     urls: "turn:numb.viagenie.ca",
+      //     credential: "muazkh",
+      //     username: "webrtc@live.com",
+      //   },
+      // ],
+      iceServers: accessToken.ice_servers.map(
+        ({ urls, credential, username }) => ({ urls, credential, username })
+      ),
     };
 
     console.log(config);
@@ -80,8 +90,30 @@ export default class ChatConnection {
     this.#peerConnection.ondatachannel = this.#handleNewDataChannelEvent;
     this.#peerConnection.onnegotiationneeded = this.#handleNegotionNeededEvent;
 
+    this.#peerConnection.addEventListener("connectionstatechange", () => {
+      switch (this.#peerConnection.connectionState) {
+        case "disconnected":
+          this.#updateStatus("waiting");
+          break;
+        case "failed":
+          this.#updateStatus("failed");
+          break;
+        case "closed":
+          this.#updateStatus("waiting");
+          break;
+      }
+    });
+
     this.#peerConnection.addEventListener("icegatheringstatechange", (e) => {
-      console.log((e.target as any).iceGatheringState);
+      console.log("gathering state", (e.target as any).iceGatheringState);
+      if ((e.target as any).iceGatheringState === "complete") {
+        setTimeout(
+          () =>
+            this.#chatChannel?.readyState !== "open" &&
+            this.#updateStatus("failed"),
+          7000
+        );
+      }
     });
 
     console.log(this.#peerConnection.getConfiguration());
@@ -122,7 +154,10 @@ export default class ChatConnection {
     this.#chatChannel = event.channel;
     console.log("ChatConnection", this);
 
-    this.#chatChannel.onopen = () => console.log("Chat Channel Open");
+    this.#chatChannel.onopen = () => {
+      console.log("Chat Channel Open");
+      this.#updateStatus("connected");
+    };
 
     this.#chatChannel.onmessage = (msgEvent) =>
       this.#handleNewMsg(JSON.parse(msgEvent.data));

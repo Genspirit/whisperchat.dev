@@ -2,7 +2,7 @@ import Document, { Html, Main, NextScript } from "next/document";
 
 import { ssrMaterialUICSS } from "~/services/styling/materialui";
 
-import CustomHeader from "~/partials/meta/header";
+import CustomHeader from "~/partials/meta/header/document";
 
 export default class CustomDocument extends Document {
   static getInitialProps = ssrMaterialUICSS;

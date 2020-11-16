@@ -13,5 +13,6 @@ export function disconnect(socket: Socket) {
     const roomParticipants = this.rooms[room];
 
     this.rooms[room] = roomParticipants.filter((user) => user !== socket.id);
+    if (this.rooms[room].length === 0) delete this.rooms[room];
   }
 }
